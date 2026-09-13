@@ -1,0 +1,10 @@
+{
+  "name": "presentation-script-grading-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "인간과 자연의 권리 발표 대본 제출·채점 웹앱",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node scripts/build.js && npx --yes serve public -l 3000"
+  }
+}

@@ -1,0 +1,92 @@
+rules_version = '2';
+
+// ===================================================================
+// 파이어스토어 보안 규칙
+// 아래 OWNER 한 줄만 선생님 구글 계정으로 바꿔서
+// 파이어베이스 콘솔의 '규칙' 탭에 붙여넣으세요.
+// ⚠ 이 파일(깃허브에 올라감)에는 실제 이메일을 적지 마세요.
+// ===================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function OWNER() {
+      return 'PUT-YOUR-EMAIL-HERE@example.com';  // ← 콘솔에 붙여넣을 때만 본인 계정으로
+    }
+    function myEmail() {
+      return request.auth != null ? request.auth.token.email.lower() : '';
+    }
+    function settingsDoc() {
+      return get(/databases/$(database)/documents/settings/global).data;
+    }
+    function isTeacher() {
+      return request.auth != null && (
+        myEmail() == OWNER().lower() ||
+        (exists(/databases/$(database)/documents/settings/global) &&
+         myEmail() in settingsDoc().teachers)
+      );
+    }
+    function isOpenNow() {
+      return exists(/databases/$(database)/documents/settings/global) &&
+             settingsDoc().isOpen == true;
+    }
+    function maxSub() {
+      return exists(/databases/$(database)/documents/settings/global) &&
+             'maxSubmissions' in settingsDoc()
+             ? settingsDoc().maxSubmissions : 3;
+    }
+
+    // ---------- 설정 ----------
+    match /settings/global {
+      allow read: if request.auth != null;
+      allow create: if myEmail() == OWNER().lower();
+      allow update: if isTeacher();
+      allow delete: if false;
+    }
+
+    // ---------- 학생 문서 ----------
+    match /students/{uid} {
+
+      // 교사는 전부 읽기, 학생은 자기 것만
+      allow read: if isTeacher() || (request.auth != null && request.auth.uid == uid);
+
+      // 최초 생성 : 본인만, 제출 횟수 0으로
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.submitCount == 0
+                    && request.resource.data.email.lower() == myEmail();
+
+      // 교사는 채점 결과를 쓰거나 제출 횟수를 초기화한다
+      allow update: if isTeacher()
+                    && (
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['grade'])
+                      || (
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['submitCount'])
+                        && request.resource.data.submitCount == 0
+                      )
+                    );
+
+      // 학생 본인 : 임시 저장(제출 횟수 그대로) 또는 제출(+1)
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && (
+                      // (1) 글만 저장 — 제출 횟수·채점 결과는 그대로
+                      (
+                        request.resource.data.submitCount == resource.data.submitCount
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['draft','updatedAt'])
+                      )
+                      ||
+                      // (2) 제출 — 열려 있을 때만, 정확히 1 증가, 최대 횟수 이내
+                      (
+                        isOpenNow()
+                        && request.resource.data.submitCount == resource.data.submitCount + 1
+                        && request.resource.data.submitCount <= maxSub()
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['draft','submittedText','feedback','submitCount','submittedAt','updatedAt'])
+                      )
+                    );
+
+      allow delete: if false;
+    }
+  }
+}
