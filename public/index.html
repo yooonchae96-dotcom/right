@@ -126,7 +126,17 @@ main{max-width:1240px;margin:0 auto;padding:20px}
 
 .left-note{font-size:14px;color:var(--sub);font-weight:600}
 .left-note b{color:var(--blue);font-weight:800}
-.tools{display:flex;gap:8px;flex-wrap:wrap}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* ---------- 폰트 크기 확대/축소 컨트롤 ---------- */
+.font-ctrl{display:inline-flex;align-items:center;background:#F2F4F7;border-radius:8px;padding:2px 3px;gap:2px;border:1px solid var(--line)}
+.font-ctrl .btn-font{background:transparent;border:none;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--ink);cursor:pointer;border-radius:6px;transition:.15s;padding:0;line-height:1}
+.font-ctrl .btn-font:hover{background:#fff;color:var(--blue);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.panel-feedback .font-ctrl .btn-font:hover{color:var(--green)}
+.font-ctrl .btn-font:disabled{opacity:.3;cursor:not-allowed}
+.font-ctrl .font-indicator{font-size:11px;font-weight:700;color:var(--sub);min-width:36px;text-align:center;user-select:none;font-variant-numeric:tabular-nums;cursor:pointer;padding:0 2px}
+.font-ctrl .font-indicator:hover{color:var(--blue)}
+.panel-feedback .font-ctrl .font-indicator:hover{color:var(--green)}
 
 /* ---------- 교사 ---------- */
 .trow{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
@@ -223,6 +233,11 @@ main{max-width:1240px;margin:0 auto;padding:20px}
           <button class="help" data-help="write">?</button>
           <span class="spacer"></span>
           <div class="tools">
+            <div class="font-ctrl" title="글자 크기 (축소하면 한 화면에서 볼 수 있어요)">
+              <button type="button" class="btn-font" id="btnZoomOutMine" title="글자 축소 (한 화면에 다 보기)">−</button>
+              <span class="font-indicator" id="zoomLabelMine" title="클릭 시 기본 크기(100%)">100%</span>
+              <button type="button" class="btn-font" id="btnZoomInMine" title="글자 확대">＋</button>
+            </div>
             <button class="btn btn-ghost btn-sm" id="btnCopyMine"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>복사</button>
             <div class="save-wrap">
               <button class="btn btn-ghost btn-sm" id="btnSaveMine">저장 ▾</button>
@@ -259,6 +274,11 @@ main{max-width:1240px;margin:0 auto;padding:20px}
           <button class="help" data-help="feedback">?</button>
           <span class="spacer"></span>
           <div class="tools">
+            <div class="font-ctrl" title="글자 크기 (축소하면 한 화면에서 볼 수 있어요)">
+              <button type="button" class="btn-font" id="btnZoomOutFb" title="글자 축소 (한 화면에 다 보기)">−</button>
+              <span class="font-indicator" id="zoomLabelFb" title="클릭 시 기본 크기(100%)">100%</span>
+              <button type="button" class="btn-font" id="btnZoomInFb" title="글자 확대">＋</button>
+            </div>
             <button class="btn btn-ghost btn-sm" id="btnCopyFb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>복사</button>
             <div class="save-wrap">
               <button class="btn btn-ghost btn-sm" id="btnSaveFb">저장 ▾</button>
@@ -552,14 +572,47 @@ $("#editor").addEventListener("input", () => {
     } catch(e){ $("#saveState").textContent = "저장 실패"; }
   }, 1200);
 });
-/* 엔터 → 새 문단 들여쓰기 */
+/* 엔터 → 문단 띄어쓰기 시 윗문단과 아래문단 모두 들여쓰기 */
 $("#editor").addEventListener("keydown", e => {
   if (e.key === "Enter") {
     e.preventDefault();
     const ta = $("#editor");
-    const s = ta.selectionStart, end = ta.selectionEnd;
-    ta.value = ta.value.slice(0, s) + "\n\u3000" + ta.value.slice(end);
-    ta.selectionStart = ta.selectionEnd = s + 2;
+    const val = ta.value;
+    let s = ta.selectionStart, end = ta.selectionEnd;
+
+    let before = val.slice(0, s);
+    let after = val.slice(end);
+
+    // 윗문단(현재 줄) 시작점 찾기
+    const lastNl = before.lastIndexOf("\n");
+    const paraStart = lastNl === -1 ? 0 : lastNl + 1;
+    const currentPara = before.slice(paraStart);
+
+    let addedBefore = 0;
+    // 윗문단이 들여쓰기(전각공백 \u3000)로 시작하지 않는 경우 맨 앞에 들여쓰기 자동 삽입
+    if (!currentPara.startsWith("\u3000")) {
+      if (currentPara.startsWith(" ")) {
+        const trimmed = currentPara.replace(/^\s+/, "");
+        const diff = currentPara.length - trimmed.length;
+        before = before.slice(0, paraStart) + "\u3000" + trimmed;
+        addedBefore = 1 - diff;
+      } else {
+        before = before.slice(0, paraStart) + "\u3000" + currentPara;
+        addedBefore = 1;
+      }
+      s += addedBefore;
+    }
+
+    // 아래문단(새 줄) 들여쓰기 처리
+    let indentAfter = "\u3000";
+    if (after.startsWith("\u3000")) {
+      indentAfter = "";
+    } else if (after.startsWith(" ")) {
+      after = after.replace(/^\s+/, "");
+    }
+
+    ta.value = before + "\n" + indentAfter + after;
+    ta.selectionStart = ta.selectionEnd = s + 1 + indentAfter.length;
     ta.dispatchEvent(new Event("input"));
   }
 });
@@ -711,6 +764,53 @@ $("#btnSaveMine").onclick = e => { e.stopPropagation(); toggleMenu("menuSaveMine
 document.addEventListener("click", () => {
   ["menuSaveFb","menuSaveMine"].forEach(id => $("#"+id).classList.add("hide"));
 });
+
+/* ================== 글자 크기 확대·축소 (내 글 / 피드백 각각) ================== */
+const FONT_LEVELS = [
+  { label: "70%",  mine: "11px",   fb: "10.5px" },
+  { label: "80%",  mine: "12.5px", fb: "12px"   },
+  { label: "90%",  mine: "14px",   fb: "13.5px" },
+  { label: "100%", mine: "15.5px", fb: "15px"   },
+  { label: "115%", mine: "18px",   fb: "17.5px" },
+  { label: "130%", mine: "20.5px", fb: "20px"   },
+  { label: "150%", mine: "23.5px", fb: "23px"   },
+];
+const DEFAULT_FONT_IDX = 3; // 100%
+
+let fontIdxMine = parseInt(localStorage.getItem("font_zoom_mine") ?? DEFAULT_FONT_IDX, 10);
+if (isNaN(fontIdxMine) || fontIdxMine < 0 || fontIdxMine >= FONT_LEVELS.length) fontIdxMine = DEFAULT_FONT_IDX;
+
+let fontIdxFb = parseInt(localStorage.getItem("font_zoom_fb") ?? DEFAULT_FONT_IDX, 10);
+if (isNaN(fontIdxFb) || fontIdxFb < 0 || fontIdxFb >= FONT_LEVELS.length) fontIdxFb = DEFAULT_FONT_IDX;
+
+function applyFontMine() {
+  const item = FONT_LEVELS[fontIdxMine];
+  $("#editor").style.fontSize = item.mine;
+  $("#zoomLabelMine").textContent = item.label;
+  $("#btnZoomOutMine").disabled = (fontIdxMine === 0);
+  $("#btnZoomInMine").disabled = (fontIdxMine === FONT_LEVELS.length - 1);
+  localStorage.setItem("font_zoom_mine", fontIdxMine);
+}
+
+function applyFontFb() {
+  const item = FONT_LEVELS[fontIdxFb];
+  $("#fbBody").style.fontSize = item.fb;
+  $("#zoomLabelFb").textContent = item.label;
+  $("#btnZoomOutFb").disabled = (fontIdxFb === 0);
+  $("#btnZoomInFb").disabled = (fontIdxFb === FONT_LEVELS.length - 1);
+  localStorage.setItem("font_zoom_fb", fontIdxFb);
+}
+
+$("#btnZoomOutMine").onclick = () => { if (fontIdxMine > 0) { fontIdxMine--; applyFontMine(); } };
+$("#btnZoomInMine").onclick  = () => { if (fontIdxMine < FONT_LEVELS.length - 1) { fontIdxMine++; applyFontMine(); } };
+$("#zoomLabelMine").onclick  = () => { fontIdxMine = DEFAULT_FONT_IDX; applyFontMine(); };
+
+$("#btnZoomOutFb").onclick = () => { if (fontIdxFb > 0) { fontIdxFb--; applyFontFb(); } };
+$("#btnZoomInFb").onclick  = () => { if (fontIdxFb < FONT_LEVELS.length - 1) { fontIdxFb++; applyFontFb(); } };
+$("#zoomLabelFb").onclick  = () => { fontIdxFb = DEFAULT_FONT_IDX; applyFontFb(); };
+
+applyFontMine();
+applyFontFb();
 
 /* ================== 교사 ================== */
 $("#tabS").onclick = () => switchTab("s");
