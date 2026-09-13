@@ -80,7 +80,7 @@ header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.88);backdro
 
 /* ---------- 학생 ---------- */
 main{max-width:1240px;margin:0 auto;padding:20px}
-.split{display:grid;grid-template-columns:1fr 1.25fr;gap:16px;align-items:start}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
 .panel{background:#fff;border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
 .ph{padding:16px 20px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--line)}
 .ph h2{margin:0;font-size:16px;font-weight:800}
@@ -216,34 +216,6 @@ main{max-width:1240px;margin:0 auto;padding:20px}
   <!-- ---------- 학생 ---------- -->
   <main id="viewStudent">
     <div class="split">
-      <!-- 피드백 -->
-      <section class="panel panel-feedback">
-        <div class="ph">
-          <h2>피드백</h2>
-          <button class="help" data-help="feedback">?</button>
-          <span class="spacer"></span>
-          <div class="tools">
-            <button class="btn btn-ghost btn-sm" id="btnCopyFb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>복사</button>
-            <div class="save-wrap">
-              <button class="btn btn-ghost btn-sm" id="btnSaveFb">저장 ▾</button>
-              <div class="save-menu hide" id="menuSaveFb">
-                <button id="btnJpgFb">JPG로 저장</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="pb">
-          <div id="fbEmpty" class="empty">
-            <div class="big">📝</div>
-            <p>글을 제출하면<br>여기에 피드백이 나와요</p>
-          </div>
-          <div id="fbWrap" class="hide">
-            <div class="scorebar"><span class="n" id="fbScore">–</span><span class="t">/ 40점</span></div>
-            <div id="fbBody"></div>
-          </div>
-        </div>
-      </section>
-
       <!-- 내 글 -->
       <section class="panel panel-write">
         <div class="ph">
@@ -277,6 +249,34 @@ main{max-width:1240px;margin:0 auto;padding:20px}
           <button class="help" data-help="submit">?</button>
           <span class="spacer"></span>
           <button class="btn btn-primary" id="btnSubmit" style="min-width:190px">제출하기</button>
+        </div>
+      </section>
+
+      <!-- 피드백 -->
+      <section class="panel panel-feedback">
+        <div class="ph">
+          <h2>피드백</h2>
+          <button class="help" data-help="feedback">?</button>
+          <span class="spacer"></span>
+          <div class="tools">
+            <button class="btn btn-ghost btn-sm" id="btnCopyFb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>복사</button>
+            <div class="save-wrap">
+              <button class="btn btn-ghost btn-sm" id="btnSaveFb">저장 ▾</button>
+              <div class="save-menu hide" id="menuSaveFb">
+                <button id="btnJpgFb">JPG로 저장</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pb">
+          <div id="fbEmpty" class="empty">
+            <div class="big">📝</div>
+            <p>글을 제출하면<br>여기에 피드백이 나와요</p>
+          </div>
+          <div id="fbWrap" class="hide">
+            <div class="scorebar"><span class="n" id="fbScore">–</span><span class="t">/ 40점</span></div>
+            <div id="fbBody"></div>
+          </div>
         </div>
       </section>
     </div>
@@ -560,6 +560,15 @@ $("#editor").addEventListener("keydown", e => {
     const s = ta.selectionStart, end = ta.selectionEnd;
     ta.value = ta.value.slice(0, s) + "\n\u3000" + ta.value.slice(end);
     ta.selectionStart = ta.selectionEnd = s + 2;
+    ta.dispatchEvent(new Event("input"));
+  }
+});
+/* 첫 문단 포커스 시 들여쓰기 자동 삽입 */
+$("#editor").addEventListener("focus", () => {
+  const ta = $("#editor");
+  if (ta.value === "") {
+    ta.value = "\u3000";
+    ta.selectionStart = ta.selectionEnd = 1;
     ta.dispatchEvent(new Event("input"));
   }
 });
